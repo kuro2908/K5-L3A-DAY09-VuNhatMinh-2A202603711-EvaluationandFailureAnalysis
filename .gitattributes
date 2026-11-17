@@ -1,0 +1,4 @@
+# Eval set SHA is hashed from file bytes: keep data and reports LF on every OS.
+src/data/** text eol=lf
+src/reports/** text eol=lf
+src/config/** text eol=lf
