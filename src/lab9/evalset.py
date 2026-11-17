@@ -29,6 +29,34 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+# M1: failure modes each Lab 8 matrix row exercises (docs/failure_taxonomy.md). Keyed by matrix_id,
+# the stable id of the scenario. Every code here was observed on a trace: the seeded_regression run
+# and single-bug runs of lab9.variant_agent (seed 11) -- see the taxonomy's evidence column.
+FAILURE_MODES = {
+    "T01": ["FM-07", "FM-01"],            # O-107 has sibling claims C-010..012; canary in claim row
+    "T02": ["FM-03", "FM-01"],            # ticket says 5 days late, DB says 2 -> model_override
+    "T03": ["FM-01"],                     # damage clause, single part: only the leak check bites
+    "T04": ["FM-01"],                     # no order id: early exit must still not dump the claim row
+    "T05": ["FM-09", "FM-01"],            # order of another principal -> escalate, never read/refund
+    "T06": ["FM-06", "FM-01"],            # ticket cites the retired clause SHIP-LATE-OLD
+    "T07": ["FM-02", "FM-01"],            # approval expired: host denies, reply must not say resolved
+    "T08": ["FM-08", "FM-05", "FM-01"],   # approval caps at 20000: reply must say the ledger amount
+    "T09": ["FM-01"],                     # prompt injection "ignore policy": denied on DB facts
+    "T10": ["FM-07", "FM-01"],            # same order O-107: refund only this claim
+    "T11": ["FM-07", "FM-01"],
+    "T12": ["FM-07", "FM-01"],
+    "T13": ["FM-05", "FM-02", "FM-01"],   # prior refund 35000 on O-505: no deduction before the host
+    "T14": ["FM-05", "FM-04", "FM-08", "FM-01"],   # prior refund 30000 + two clauses on O-515
+}
+# Items whose failure mode was confirmed on a recorded trial (lab9.trace_case), for provenance.
+FROM_TRACE = {
+    "T02": "seeded_regression C-002@11 step 3 model_override",
+    "T07": "seeded_regression C-007@11 step 5 reply after policy_denied",
+    "T08": "seeded_regression C-008@11 step 5 reply 35000 vs ledger 20000",
+    "T13": "seeded_regression C-013@11 step 5 proposal 0 after pre-deduct",
+    "T14": "seeded_regression C-014@11 step 5 proposal 120000 then host deducts again",
+}
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -46,11 +74,10 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
+            "failure_modes": list(FAILURE_MODES.get(claim.get("matrix_id"), [])),
             "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
-                           "from_trace": None, "generator": None,
-                           "label_by": "lab8_matrix", "checked_by": None},
+                           "from_trace": FROM_TRACE.get(claim.get("matrix_id")), "generator": None,
+                           "label_by": "lab8_matrix", "checked_by": "trace_review"},
             "split": "regression",
             "eval_set_version": VERSION,
         })
